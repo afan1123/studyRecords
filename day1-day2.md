@@ -147,3 +147,27 @@
  // 块级作用域
 })();
 ```
+
+### 解决 for 循环异步问题
+
+```
+// 立即执行函数
+for (var i=1;i<5;i++){
+ (setTimeout(
+ (j)=>{console.log(j)},0)
+ )(i)
+}
+
+// setTimeout
+for (var i=1;i<5;i++){
+ setTimeout(
+ ()=>{console.log(i)},0,i)
+}
+
+// let
+for (let i=1;i<5;i++){
+ setTimeout(
+ ()=>{console.log(i)},0)
+}
+
+```

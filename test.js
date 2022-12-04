@@ -1,9 +1,5 @@
-function format() {
-  let qs = location.search.length > 0 ? location.search.substring(1) : '';
-  let args = {};
-  let keyValList = qs.split('&');
-  keyValList.split('=').map((item) => {
-    args[item[0]] = item[1];
-  });
-  return args;
-}
+const obj = {};
+Object.defineProperty(obj, 'name', {});
+obj.name = 1;
+console.log(obj.name); //undefined
+console.log(Object.getOwnPropertyDescriptor(obj, 'name'));

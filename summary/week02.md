@@ -274,7 +274,7 @@ function myInstanceof(left, right) {
 ## 对象隐式转换
 
 - Symbol.toPrimitive：若存在，优先调用且无视 valueOf 和 toString。
-- Object.prototype.toString：若期望值为 string，则优先调用；若返回值不是原始值，调用 valueOf。
+- Object.prototype.toString：若期望值为 string（只有 Date 类型），则优先调用；若返回值不是原始值，调用 valueOf。
 - Object.prototype.valueOf：若期望值为 number 或者 default，先调用 valueOf；若返回值不是原始值，调用 toString。
 
 ### Symbol.toPrimitive(hint)

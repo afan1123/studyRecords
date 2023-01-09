@@ -1,8 +1,8 @@
 let obj = {
-  val: '1231--~',
+  val: 123,
   valueOf() {
     console.log('valueof');
-    return this.val;
+    return function () {};
   },
   toString() {
     console.log('toString');

@@ -31,6 +31,15 @@
 2. valueOf：若期望值是 number 或者 default，则先调用。若返回值不是原始值，则调用 toString
 3. toString：若期望值是 string ，则先调用。若返回值不是原始值，则调用 valueOf
 
+- 注意：
+  - 原始值：undefined,null,boolean,number,string
+  - 期望值：
+    - String：``模板字符串，test[obj]=123
+    - Number：一元+，位移，关系运算符，加减乘除，Array 的内部方法
+    - Default：二元+，==，!=
+  - 其他：
+    - ==，!=的情况下，只有一侧是对象的情况下才会隐式转换
+
 ### 表达式
 
 ### 循环结构

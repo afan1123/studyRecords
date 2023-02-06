@@ -6,6 +6,7 @@
 
 - 方法：typeof
 - 原理：根据每个类型在内存中存储的格二进制进行判断
+
   ```js
   object/null:000
   integer:001
@@ -43,6 +44,7 @@
   - 原理：Object.prototype.toString 会读取该值
   - 适用场景：需要自定义类型
   - 实现：
+
     - ```js
       class myDate {
         get [Symbol.toStringTag]() {
@@ -52,6 +54,7 @@
       const date = new myDate();
       consoel.log(Object.prototype.toString.call(date)); // 'myDate'
       ```
+
 - 等比较（===）
 
 ### 字符串批量转数字
@@ -106,7 +109,7 @@ arr.map(parseInt); // [1,NaN,NaN]
   - []+[] == ''
   - []+{} == '[object Object]'
   - {}+[] == 0 // {}被当作了空的代码块
-  - {}+{} == '[object Object][object object]'
+  - {}+{} == '[object Object][object object]' （等同于({}+{})）
 
 # 对象
 
@@ -150,8 +153,8 @@ arr.map(parseInt); // [1,NaN,NaN]
 - writable:可被改写
 - get：访问器函数
 - set：访问器函数
-- 数据属性：value + writable + configurable + enunmberable
-- 访问器属性：get + set + configurable + enunmberable
+- 数据属性：value + writable + configurable + enumberable
+- 访问器属性：get + set + configurable + enumberable
 - 注意：
   <img src='./images/01.png' />
 
@@ -187,7 +190,7 @@ arr.map(parseInt); // [1,NaN,NaN]
 
 - 构造函数的原型都有这个属性，除 null 以外
 
-- Function，class 的实例有 prototype 以及** proto **属性
+- Function，class 的实例有 prototype 以及**proto**属性
 
 - 普通函数，祖上三代必为 null
 
@@ -280,9 +283,9 @@ function myInstanceof(left, right) {
 ### Symbol.toPrimitive(hint)
 
 - hint - "string"
-  - window.alert(obj)
   - 模板字符串`${}`
   - test[obj] = 123
+
   ```js
   const obj = {
     [Symbol.toPrimitive](hint) {
@@ -297,6 +300,7 @@ function myInstanceof(left, right) {
   obj[obj] = 123;
   console.log(Object.keys(obj)); // ['hello']
   ```
+
 - hint - "number"
   - 一元+，位移
   - -，\*，/，关系运算符
@@ -379,6 +383,7 @@ console.log(+obj); // 期望值是number，
 ## 函数
 
 - 普通函数时，this 的指向是调用函数的对象
+
   ```js
   let name = 'letName';
   const person = {
@@ -416,6 +421,7 @@ console.log(Object.trString); // 还存在
 
   - 全局上下文的属性方法
   - let，const 声明的变量函数
+
   - ```js
     function foo() {
       this.name = 'jack';
@@ -456,6 +462,7 @@ console.log(Object.trString); // 还存在
 - 整数：除 2 取余，逆序排列
 - 余数：乘 2 取整，顺序排列
 - 9.375 = 1001 + 0.011 = 1001.011
+
   ```js
   (9.375).toString(2);
   Number.prototype.toString.call(9.375, 2);
@@ -487,12 +494,15 @@ console.log(Object.trString); // 还存在
 
 - for 循环 + push
 - 数组 + fill + map
+
   ```js
   new Array(100).fill(null).map((item, index) => {
     return { name: 'jack' + index };
   });
   ```
+
 - Array.from()
+
   ```js
   Array.from({ length: 100 }, (item, index) => {
     return {
@@ -504,9 +514,11 @@ console.log(Object.trString); // 还存在
 ## 数组去重
 
 - Set
+
   ```js
   new Set([...[1, 2, 3], ...[2, 3, 4]]);
   ```
+
 - for + indexOf
 - for + find|findIndex
 
@@ -553,21 +565,28 @@ console.log(Object.trString); // 还存在
 ## 类数组转为数组
 
 - slice
+
   ```js
   const arrayLike = { length: 10, 0: 1, 1: 2 };
   Array.prototype.slice.call(arrayLike);
   ```
+
 - concat
+
   ```js
   const arrayLike = { length: 10, 0: 1, 1: 2 };
   Array.prototype.concat.apply([], arrayLike);
   ```
+
 - Array.from
+
   ```js
   const arrayLike = { length: 10, 0: 1, 1: 2 };
   Array.from(arrayLike);
   ```
+
 - Array.apply
+
   ```js
   const arrayLike = { length: 10, 0: 1, 1: 2 };
   Array.apply(null, arrayLike);
@@ -603,6 +622,7 @@ console.log(Object.trString); // 还存在
 - 万能数据生成器：Array.from({length:10})
 - 随机数生成器：Array.from({length:10},Math.random)
 - 序列生成器：
+
   ```js
   Array.from({length:10},(index,item)=>{
   // start:开始下标
@@ -631,6 +651,7 @@ console.log(Object.trString); // 还存在
   - 性能问题：includes 消耗较大
   - 引用对象判断问题
 - 引用类型：Array.prototype.forEach + map + key 唯一
+
   ```js
   // 引用数据类型
   function foo(arr1, arr2, key) {
@@ -641,7 +662,9 @@ console.log(Object.trString); // 还存在
     return arr2.filter((val) => map.has(val[key]));
   }
   ```
+
 - 基础类型：Array.prototype.forEach + map + filter
+
   ```js
   // 基础数据类型
   function foo(arr1, arr2) {

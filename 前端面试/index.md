@@ -1,0 +1,279 @@
+# 面试复习
+
+## js
+
+### 解释一下原型链
+
+- 函数或者对象的身上会存在原型，就是 prototype 属性，prototype 属性上挂在着一些方法，当函数或者对象访问时，可以写成 function/object.prototype 的形式，来访问里面的方法。还存在**proto**的属性，用来指向对象的原型，当调用 prtotype 访问不到想要的方法/属性时，会调用**proto**来查找其原型上的方法/属性。
+
+### 寄生组合继承
+
+#### 组合继承
+
+- 缺点：两次构造函数的执行，第二次执行会把原先的实例属性覆盖
+
+```js
+// 会调用两次构造函数：1、创建子类原型时  2、子类型构造函数内部
+function SuperType(name) {
+  this.name = name;
+  this.colors = ['red', 'blue'];
+}
+SuperType.prototype.sayName = function () {
+  console.log(this.name);
+};
+function SubType(name, age) {
+  SuperType.call(this, name); // 第二次调用SuperType
+  this.age = age;
+}
+SubType.prototype = new SuperType(); // 第一次调用SuperType
+SubType.prototype.sayAge = function () {
+  console.log(this.age);
+};
+```
+
+#### 解决方案：寄生组合继承
+
+原理：
+
+- 通过借用构造函数来继承属性；
+- 通过原型链来继承方法
+
+```js
+function inheritPrototype(subType, superType) {
+  // 1、创建超类型原型的副本
+  var protoType = Object.create(superType.prototype); // 创建对象
+  // 2、为创建的副本添加constructor属性，弥补因重写原型而失去的默认的constructor属性
+  protoType.constructor = subType; // 增强对象
+  // 3、将新创建的对象（即副本）赋值给子类型的原型
+  subType.prototype = protoType; // 指定对象
+}
+function SuperType(name) {
+  this.name = name;
+  this.colors = ['red', 'blue'];
+}
+SuperType.prototype.sayName = function () {
+  console.log(this.name);
+};
+function SubType(name, age) {
+  SuperType.call(this, name);
+  this.age = age;
+}
+inheritPrototype(SubType, SuperType);
+SubType.prototype.sayAge = function () {
+  console.log(this.age);
+};
+const instance = new SubType('Bob', 18);
+instance.sayName();
+instance.sayAge();
+```
+
+### instanceof 原理
+
+```js
+function myInstanceof(left, right) {
+  let proto = L.__proto__;
+  let prototype = R.prototype;
+  while (true) {
+    if (L == null) return false;
+    if (prototype == proto) return true;
+    L = L.__proto__;
+  }
+}
+```
+
+### 具体原型链判断
+
+### Object.prototype.\_\_proto\_\_ ===null
+
+### Function.prototype.\_\_proto\_\_ === Object.prototype
+
+### 构造函数自身的\_\_proto\_\_ === Function.prototype
+
+### Object 的\_\_proto\_\_ === Function.prototype
+
+### Object instanceof Function === true
+
+### Function instanceof Object === true
+
+### Function.prototype === Function.\_\_proto\_\_
+
+### New 操作符
+
+```js
+function myNew() {
+  // 1、获取构造函数，判断函数
+  const constructor = [...arguments].shift();
+  if (typeof constructor !== 'function') {
+    console.error('type error');
+    return;
+  }
+  // 2、新建一个空对象
+  let obj = {};
+  // 3、对象的原型为构造函数的 prototype 对象
+  obj = Object.create(constructor.prototype);
+  // 4、 将 this 指向新建对象，并执行函数
+  let result = constructor.call(obj, ...arguments);
+  // 5、判断是否返回对象/函数
+  let flag =
+    result && (typeof result === 'object' || typeof result === 'function');
+  return flag ? result : obj;
+}
+// myNew(函数，参数...)
+```
+
+### this 指向
+
+- this 是执行上下文的一个属性，用来表示执行这个函数的最后一个对象。有四种模式：
+  - 函数调用模式：当一个函数不是对象的属性时，直接调用函数，this 指向全局
+  - 方法调用模式：当一个函数是对象的属性时，this 指向这个对象
+  - 构造器调用模式：当一个函数被 new 出来时，根据 new 实现原理，会创建一个新对象，this 指向这个新创建的对象
+  - call、apply、bind：会改变 this 指向
+  - 注意：
+    - 优先级：构造器调用模式>call、apply、bind> 方法调用模式>函数调用模式
+
+### const、let、var 区别
+
+- var
+  - 变量/函数提升：在最近得上下文最前面添加变量。
+  - 未声明，直接初始化，则添加到全局上下文。
+- let
+  - 适用于块级作用域
+  - 不能重复声明变量
+  - 不会有提升效果，会形成暂时性死区
+- const
+  - 不能重复声明
+  - 不能更改，但可以更改对象键值。
+  - 没有提升效果
+
+### 闭包的作用和原理以及使用场景
+
+- 定义：可以让另一个上下文访问该函数内部的方法和变量
+- 原理：在函数内部再 return 一个可以访问内部变量的函数
+- 作用：
+  - 使函数外部网文函数内部的变量
+  - 让已经执行完上下文中的变量持续留在内存中
+- 场景：
+  - 使用定时器回调，如防抖
+  - IIFE 自执行函数
+  - 函数作为参数，如事件监听，Promise.then...
+  - 返回函数,如：递归..
+
+### js 垃圾回收机制
+
+当 js 代码运行时，需要为变量和值分配内存空间。当变量和值不参与运行时，就需要垃圾回收机制回收内存空间。
+回收的主要有两种变量：局部变量和全局变量。全局变量的内存空间会随着页面的卸载而释放；局部变量的内存空间会随着函数的执行结束而释放。但是闭包，当外部变量指向函数内部变量时，其内存永远不会被回收。
+
+- 主要的回收机制
+
+  - 标记清楚法：
+    - 原理：将变量标记为‘进入环境’和‘离开环境’两种，定时清理‘离开环境’标记的变量
+    - 优点：设计简单方便
+    - 缺点：
+      - 分配效率低
+      - 内存碎片化
+  - 引用计数法：
+    - 原理：跟踪每个值被引用的次数。当一个变量被引用类型赋值或者再赋值给别的变量后，这个值的引用次数+1；当这个变量设置为 null 就-1 或者其他的变量赋值为 null 就-1
+    - 优点：只需要计数器，为 0 立即回收
+    - 缺点：引用数量上限权问题，循环引用无法解决。
+  - 分代式回收：
+    - 新生代、老生代
+      - 新生代原理：新加入的对象会进入使用区，然后对所有对象标记，复制对象进入空闲区。使用区写满就会清理一次。最后空闲区和使用区会互换内容，多次未被清理的对象转入老生代区。
+      - 老生代原理：标记清楚法和标记整理（优化清除法的空间）
+    - 优点：活跃区小且清理频繁，老生代很少接受检查，提高垃圾回收的频率
+    - 并行回收
+    - 增量标记与懒性清理
+
+- 垃圾回收的代价比较大，所以应该尽量减少垃圾回收
+  - 清空数组时，使用 length=0 的方式
+  - 清空对象时，使用 null 的方式
+  - 在循环中的函数表达式，如果可以复用，尽量放在函数的外面。
+
+### 作用域的理解
+
+- 定义：主要是存储函数\变量的地方，有全局作用域、局部作用域和块级作用域
+- 作用域链：在当前作用域寻找变量，如果当前没有，则向上查找腹肌作用域，一直放文档 window 对象为止。
+
+### apply\call\bind 区别
+
+- 相同点：都是用来改变指向
+- apply：
+  - 直接调用
+  - 后一个参数为数组
+- call：
+  - 直接调用
+  - 后参数可以传很多
+- bind：
+  - 间接调用
+  - 后参数可以传很多
+
+### call 实现
+
+```js
+function myCall(context) {
+  if (typeof this !== 'function') return;
+  const args = [...arguments].slice(1);
+  let result = null;
+  context = context || window;
+  context.fn = this;
+  result = context.fn(args);
+  delete context.fn;
+  return result;
+}
+```
+
+### 连续多个 bind，最后 this 指向是什么
+
+- 只会是第一次绑定 bind 生效
+
+```js
+function foo1() {
+  console.log(this.name);
+}
+let o1 = {
+  name: 'jack',
+};
+let o2 = {
+  name: 'rose',
+};
+const foo2 = foo1.bind(o1).bind(o2);
+foo2(); // 'jack'
+let o2 = {
+  name: 'dan',
+};
+const foo3 = foo1.bind(o1).bind(o2).bind(o3);
+foo3(); // 'jack'
+```
+
+### es6 新特性
+
+- let const 关键字
+- 解构赋值：...
+- 箭头函数
+  - 与普通函数与别
+    - 普通函数有变量提升，他没有
+    - 普通函数的 this 指向，谁调用就指向谁；箭头函数在哪里定义就指向谁
+    - 普通函数可以当构造函数，箭头函数不行，因为没有 argumengts
+- promise
+- class 关键字
+- 简单数据类型 symbol
+
+### promise.all 和 promise.allsettled 区别
+
+- promise.all：返回的是包裹 resolve 内容的数组，只要有一个 promise 对象报错，就报错
+- promise.allsettled：返回的是包裹着对象的数组，不管里面有没有错，都会返回；如果是 resolve 的数据，则 status 为 fulfilled，否则是 rejected
+
+### substr 和 string 区别
+
+substr(startIndex,lenth)
+substring(startIndex, endIndex)
+
+### symbol 这个新增的基础数据类型有什么用
+
+作用：
+
+- 生成全局唯一的值
+- symbol 作为键名，不被常规方法遍历，如 Object.keys()或者 for...in
+
+场景：
+
+- 可以在 class 里封装私有属性/方法

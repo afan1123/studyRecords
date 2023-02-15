@@ -663,3 +663,65 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
     - 可应用与 Android 开发
 - MVVM（Model-View-ModelView）与 MVP 基本一致
   - 区别：View 与 ViewModel 实现了双向绑定，View 层变动自动反映在 ViewModel 层，反之亦然
+
+### 发布-订阅模式
+
+```js
+var _Event = (function () {
+  var clienlist = {},
+    addlisten,
+    trigger,
+    remove;
+  // 增加订阅者
+  addlisten = function (key, fn) {
+    if (!clienlist[key]) {
+      clienlist[key] = [];
+    }
+    clienlist[key].push(fn);
+  };
+  // 发布消息
+  trigger = function () {
+    var key = [].shift(arguments), // 消息类型
+      fns = clienlist[key]; // 取出该类型的对应的消息集合
+    if (!fns || fns.length === 0) return false;
+    for (let i = 0, fn; (fn = fns[i++]); ) {
+      fn.apply(this, arguments);
+    }
+  };
+  // 删除订阅
+  remove = function (key, fn) {
+    var fns = clienlist[key];
+    if (!fns) return false;
+    if (!fn) fns && fns.length === 0; // 没有传入具体函数，则取消该类型的所有订阅
+    if (fn) {
+      for (let i = 0; i < fns.length; i++) {
+        if (fn === fns[i]) {
+          fns.splice(i, 1);
+        }
+      }
+    }
+  };
+})();
+```
+
+### 实现括号有效
+
+```js
+const str = '[]{}()';
+const isValid = (str = '') => {
+  const map = new Map();
+  map.set('(', ')');
+  map.set('[', ']');
+  map.set('{', '}');
+  const b = [];
+  for (let i = 0; i < str.length; i++) {
+    if (map.has(str[i])) {
+      b.push(str[i]);
+    } else {
+      let pop = b.pop();
+      if (map.get(pop) !== str[i]) return false;
+    }
+  }
+  return b.length === 0;
+};
+```

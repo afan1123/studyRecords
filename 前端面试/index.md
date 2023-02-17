@@ -725,3 +725,67 @@ const isValid = (str = '') => {
   return b.length === 0;
 };
 ```
+
+### 柯里化函数
+
+```js
+const curry = (fn, ...args) =>
+  // 函数的参数个数可以直接通过函数数的.length属性来访问
+  args.length >= fn.length // 这个判断很关键！！！
+    ? // 传入的参数大于等于原始函数fn的参数个数，则直接执行该函数
+      fn(...args)
+    : /**
+       * 传入的参数小于原始函数fn的参数个数时
+       * 则继续对当前函数进行柯里化，返回一个接受所有参数（当前参数和剩余参数） 的函数
+       */
+      (..._args) => curry(fn, ...args, ..._args);
+
+function add1(x, y, z) {
+  return x + y + z;
+}
+const add = curry(add1);
+console.log(add(1, 2, 3));
+console.log(add(1)(2)(3));
+console.log(add(1, 2)(3));
+console.log(add(1)(2, 3));
+```
+
+### 防抖
+
+```js
+function debounce(fn, delay) {
+  let timer = null;
+  return function () {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => {
+      fn();
+    }, delay);
+  };
+}
+```
+
+```js
+function throttle(fn, delay) {
+  let timer;
+  return function () {
+    let args = arguments;
+    if (!timer) {
+      timer = setTimeout(() => {
+        fn.apply(this, args);
+      }, delay);
+    }
+  };
+}
+```
+
+## webpack
+
+### tree-shaking
+
+- 定义：是一种删除不需要的额外代码的优化方式
+
+- 原理：
+  - 根据 ES6 Module 静态分析，判断编译的时候加载了哪些模块
+  - 判断哪些模块和变量未使用，进而删除

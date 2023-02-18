@@ -1,11 +1,14 @@
-let obj = {
-  val: 123,
-  valueOf() {
-    console.log('valueof');
-    return function () {};
-  },
-  toString() {
-    console.log('toString');
-    return this.val;
-  },
-};
+function debounce(fn, delay) {
+  let timer = null;
+  return function () {
+    if (timer) clearTimeout(timer);
+    timerTimeout(() => {
+      fn();
+    }, delay);
+  };
+}
+
+function throttle(fn, delay) {
+  let timer = null;
+  return;
+}

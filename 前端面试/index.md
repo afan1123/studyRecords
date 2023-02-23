@@ -1214,3 +1214,52 @@ function throttle(fn, delay) {
   - 合成层的位图，会交给 GPU 处理，比 CPU 快
   - 当需要重绘时，只需要重绘本身层，不影响其他层
   - 对于 transform 和 opacity 效果，不会触发 layout 和 paint
+
+## Vue
+
+### vue 父子组件传值有哪些方法
+
+- props/emit
+- provide/inject
+- ref/$refs
+- $parent/$children
+
+### vue 开发中常用的指令有哪些
+
+- v-once：只执行一次渲染，当数据变化时，不会再改变
+- v-cloak：防止页面加载时出现 vuejs 的变量名
+- v-show：相当于 display
+- v-if，v-else，v-ele-if：生成 VNode 时，会忽略这个节点
+- v-html：往节点上添加 innerHTML 属性
+- v-for：循环
+- v-bind：将后面的属性解析成 js，缩写（：），语法：v-bind:<属性>="<值>"
+- v-on：事件绑定，写法：v-on:<事件类型>="<函数名>"
+- v-model：双向绑定
+  - 原生文本框：<input type='text/textarea' v-bind:value='val' v-on:input='val=$event.target.value' />
+  - 原生单选/复选框：<input type='radio/checkbox' v-bind:checked='val' v-on:change='val=$event.target.value' />
+  - 原生选择框：<input type='select' v-bind:value='val' v-on:change='val=$event.target.value' />
+
+### vue 的组件加载和渲染顺序
+
+- 挂载顺序：父 beforeCreate => 父 created => 父 beforeMount => 子 beforeCreate => 子 created => 子 beforeMount => 子 mounted => 父 mounted
+- 更新顺序：父 beforeUpdate => 子 beforeUpdate => 子 updated => 父 updated
+- 销毁顺序：父 beforeDestroy -> 子 beforeDestroy -> 子 destroyed -> 父 destroyed
+
+### vue 的数据绑定机制是如何实现的
+
+- 思路：vue 双向数据绑定是通过 数据劫持 结合 发布订阅模式的方式来实现的
+- 核心：Object.defineProperty(obj, prop, descriptor)
+
+```js
+// 简单实现
+var obj = {};
+var val = 'jack';
+Object.defineProperty(obj, 'val', {
+  get: function () {
+    return val;
+  },
+  set: function (newVal) {
+    val = newVal;
+  },
+});
+```

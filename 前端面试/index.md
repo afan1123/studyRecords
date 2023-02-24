@@ -1247,19 +1247,175 @@ function throttle(fn, delay) {
 
 ### vue 的数据绑定机制是如何实现的
 
-- 思路：vue 双向数据绑定是通过 数据劫持 结合 发布订阅模式的方式来实现的
 - 核心：Object.defineProperty(obj, prop, descriptor)
+- ```js
+  // 简单实现
+  var obj = {};
+  var val = 'jack';
+  Object.defineProperty(obj, 'val', {
+    get: function () {
+      return val;
+    },
+    set: function (newVal) {
+      val = newVal;
+    },
+  });
+  ```
+
+- 思路：vue 双向数据绑定是通过 数据劫持 结合 发布订阅模式的方式来实现的
+  1. 将 vue 中的 data 中的内容绑定到输入文本框和文本节点中
+  2. 当文本框的内容改变时，vue 实例中的 data 也同时发生改变
+  3. 当 data 中的内容发生改变时，输入框及文本节点的内容也发生变化
+
+#### 第一步：data 绑定输入框与文本内容
+
+使用 DocumentFragment 来劫持子节点，这样可以只回流一次。遍历每个节点，看是对否有 v-model 属性或者{{}}这个符号，如果有且有修改，则替换为 data 中的内容。
+
+#### 第二部：视图中的输入框导致数据模型更改
 
 ```js
-// 简单实现
-var obj = {};
-var val = 'jack';
-Object.defineProperty(obj, 'val', {
-  get: function () {
-    return val;
-  },
-  set: function (newVal) {
-    val = newVal;
-  },
-});
+// 1. 实现响应式监听属性的函数
+function defineReactive(obj, key, val) {
+  Object.defineProperty(obj, key, {
+    get() {
+      return val;
+    },
+    set(newVal) {
+      if (newVal === val) {
+        return;
+      }
+      val = newVal;
+    },
+  });
+}
+// 2. 实现观察者，对每一个实例属性都监听
+function observe(obj, vm) {
+  for (let key of Object.keys(obj)) {
+    defineReactive(vm, key, obj[key]);
+  }
+}
+// 3. 实现编译函数compile，即视图中的输入框与文本节点与数据绑定
+// 4. Vue的构造函数
+function Vue(options) {
+  this.data = options.data;
+  var data = this.data;
+  observe(data, this);
+  var id = options.id;
+  // 编译HTML：利用碎片文档将多次操作合并为一次，最后一次性添加到里面
+  var dom = nodeToFragment(document.getElementById(id), this);
+  document.getElementById(id).appendChild(id);
+}
 ```
+
+#### 第三步：data 数据变动导致输入框和文本节点变动
+
+1. 在 observe（监听数据）中为每个属性添加 dep
+2. 在 nodeToFragment（HTML 编译）中，给每个数据绑定的相关节点生成一个订阅者 watcher，watcher 会将自己添加到 dep 中
+3. 当属性的改变时，就会触发 set 事件，里面触发 dep.notify()也就是 watcher 的 update()方法，从而更新视图
+
+```js
+// 订阅者
+function Watcher(vm, node, name) {
+  Dep.target = this;
+  this.vm = vm;
+  this.name = name;
+  this.update();
+  Dep.target = null; // 全局变量，使用完必须清空，保证唯一性
+}
+Watcher.prototype = {
+  update() {
+    this.get();
+    this.node.nodeValue = this.value;
+  },
+  get() {
+    this.value = this.vm[this.name]; // 触发相应的get，get中将相应的watcher加入到对应的dep中
+  },
+};
+// defineReactive改写
+function defineReactive(obj, key, val) {
+  var dep = new Dep();
+  Object.defineProperty(obj, key, {
+    get() {
+      if (Dep.target) {
+        dep.addSub(Dep.target);
+      }
+      return val;
+    },
+    set(newVal) {
+      if (newVal === val) {
+        return;
+      }
+      val = newVal;
+      // 通知
+      dep.notify();
+    },
+  });
+}
+function Dep() {
+  this.subs = [];
+}
+Dep.prototype = {
+  addSub() {
+    this.subs.push(sub);
+  },
+  notify() {
+    this.subs.forEach((sub) => {
+      sub.update();
+    });
+  },
+};
+```
+
+### vue 的 computed 和 watch 的区别
+
+|          | computed       | watch                              |
+| -------- | -------------- | ---------------------------------- |
+| 定义     | 计算属性       | 监听数据变化                       |
+| 缓存     | 支持缓存       | 不支持缓存                         |
+| 异步     | 不支持异步     | 支持异步                           |
+| 首次监听 | 首次监听       | 默认首次不监听                     |
+| 使用场景 | 同步、加工属性 | 高性能消耗、异步操作、数据变化响应 |
+
+### 说下 vue 的 keep alive
+
+- 定义：是 Vue 的内置组件，当它包裹动态组件时，会缓存不活动的组件实例在内存中，防止重复渲染 DOM，而不是销毁它们。
+- 原理：在 created 函数调用时将需要缓存的 VNode 节点保存在 this.cache 中／在 render（页面渲染） 时，如果 VNode 的 name 符合缓存条件（可以用 include 以及 exclude 控制），则会从 this.cache 中取出之前缓存的 VNode 实例进行渲染。
+- 属性：
+  - include：相关名称会被缓存
+  - exclude：相关名称会不被缓存
+  - max：最多缓存多少组
+- 生命周期：
+  - actived：在 keep-alive 组件激活时调用/在组件第一次渲染时也会被调用，  该钩子函数在服务器端渲染期间不被调用。
+  - deactived：在 keep-alive 组件停用时调用，  该钩子函数在服务器端渲染期间不被调用。
+- 生命周期顺序：钩子的触发顺序 created -> mounted -> activated，退出时触发 deactivated。
+  当再次进入（前进或者后退）时，只触发 activated。
+- 何时生效：activated 中执行才会生效
+
+### v-model 的原理（同上）
+
+### vue next tick 实现原理
+
+- 定义：在 DOM 更新完毕之后执行一个回调
+- 原理：
+  - vue 用异步队列的方式来控制 DOM 更新和 nextTick 回调先后执行
+  - 微任务因为其高优先级特性，能确保队列中的微任务在一次事件循环前被执行完毕
+  - 因为浏览器和移动端兼容问题，vue 不得不做了 microtask 向 macrotask 的兼容(降级)方案
+    - 降级方案
+      - 先判断 Promise
+      - 再判断 MutationObserver
+      - 再判断 setImmediate
+      - 最后判断 setTimeout
+
+### vue diff 算法原理
+
+- 背景：进行虚拟节点对比，并返回一个 patch 对象，用来存储两个节点不同的地方，最后用 patch 记录的消息去局部更新 Dom。
+- 步骤：
+
+1. 首先，对比节点本身，判断是否为同一节点，如果不为相同节点，则删除该节点重新创建节点进行替换
+2. 如果为相同节点，进行 patchVnode，判断如何对该节点的子节点进行处理，先判断一方有子节点一方没有子节点的情况(如果新的 children 没有子节点，将旧的子节点移除)
+3. 比较如果都有子节点，则进行 updateChildren，判断如何对这些新老节点的子节点进行操作（diff 核心）。
+4. 匹配时，找到相同的子节点，递归比较子节点
+
+注意：在 diff 中，只对同层的子节点进行比较，放弃跨级的节点比较，使得时间复杂从 O(n3)降低值 O(n)，也就是说，只有当新旧 children 都为多个子节点时才需要用核心的 Diff 算法进行同层级比较。
+
+### vue mixin 解决什么问题 原理 缺点

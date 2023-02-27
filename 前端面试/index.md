@@ -1419,3 +1419,117 @@ Dep.prototype = {
 注意：在 diff 中，只对同层的子节点进行比较，放弃跨级的节点比较，使得时间复杂从 O(n3)降低值 O(n)，也就是说，只有当新旧 children 都为多个子节点时才需要用核心的 Diff 算法进行同层级比较。
 
 ### vue mixin 解决什么问题 原理 缺点
+
+- 作用：将组件的公共逻辑或者配置提取出来，哪个组件需要用到时，直接将提取的这部分混入到组件内部即可。
+- 生命周期：现在作用 mixin 里面的代码，再作用组件内部代码
+- 缺点：
+  - 命名冲突
+  - 滥用的话，后期维护很难
+  - 可读性不强
+  -
+- 原理：将实现写好的配置选项混入组件，然后与组件中的对象、方法进行合并，用策略模式进行合并
+  - data、provide：后者的值将对前者的值进行扩展，相同属性名（非对象）则以后者的属性值为准，如果两者的值是对象，但值不相等，则继续进行合并
+  - 生命周期钩子函数：将后者的生命周期钩子函数拼接到前者的生命周期钩子函数，调用时依次执行；
+  - components、filters、directives：对前者的属性进行拷贝扩展，属性相同则后者覆盖前者；
+  - watch：与生命周期钩子函数类似，将后者的 watch 拼接到前者的 watch 后面；
+  - props、methods、inject、computed：定义一个对象 ret，遍历前者的属性或方法，对 ret 进行扩展，再遍历后者的属性或方法，后者将覆盖前者的属性或方法；
+  - 默认策略：策略中没有定义的策略，后者有则返回后者，否则返回前者；
+
+### vue3 有哪些改变
+
+### 谈一下对 vuex 的理解
+
+- 定义：是一个状态管理模式，采用集中式存储管理应用的所有组件的状态。
+- 核心：
+  - state：数据
+  - actions：状态跟新，可异步操作
+  - mutations：唯一可以修改 state 数据的地方
+  - getters：计算属性，有缓存
+  - modules：模块化管理仓库，数据量特别大，管理模块多的时候用
+- 流程：dispatch 调用一个 action 对应的 action 处理参数，比如接口/逻辑操作/传值/commit 一个 type 类型
+  mutation 接收一个 type 类型触发对应的函数，修改 state 的值 state 更改后对应的 view 视图在 render 的作用下重新渲染
+
+### Generator 原理
+
+```js
+function* gen() {
+  yield 1;
+  yield 2;
+  yield 3;
+}
+let g = gen();
+console.log(g.next()); //{value:1,done:false}
+console.log(g.next()); //{value:2,done:false}
+console.log(g.next()); //{value:3,done:false}
+console.log(g.next()); //{value:undefined,done:true}
+```
+
+- 定义：Generator 函数是异步编程的解决方案，可以配合 yield 关键字来暂停或者执行函数。返回的是迭代器对象，使用 next 可以依次遍历函数内部的每个状态
+- async + await : 是 generator 和 promise 的语法糖
+
+```js
+// async+await
+async function asyncFun() {
+  let a = await Promise.resolve('A');
+  let b = await Promise.resolve('B');
+  return a + b;
+}
+asyncFun().then((res) => console.log(res)); // AB
+// generator+promise
+function* generatorFun() {
+  let a = yield Promise.resolve('A');
+  let b = yield Promise.resolve('B');
+  return a + b;
+}
+
+// run 为执行函数
+run(generatorFun).then((res) => console.log(res)); // AB
+function run(gen) {
+  return new Promise(function (resolve) {
+    // 执行Generator函数
+    let g = gen();
+    const next = (context) => {
+      let { done, value } = g.next(context);
+      if (done) {
+        // 完成返回
+        resolve(value);
+      } else {
+        // 未完成继续执行next函数，并传入本次执行结果
+        value.then(next);
+      }
+    };
+    next();
+  });
+}
+```
+
+### vue-router 有哪几种导航钩子
+
+- 全局路由钩子：
+  - router.beforeEach((to,forom,next)=>{})
+    - to：目标对象
+    - form：来源对象
+    - next：调用函数（必填）
+  - router.beforeResolve()：在导航被确认之前。所有组件内守卫和异步路由被解析之后调用
+  - router.afterEach()：路由改变之后的钩子
+- 路由独享钩子：
+  - beforeEnter：
+- 组件内的导航钩子：
+
+  - beforeRouteEnter：在进入当前组件对应的路由前调用
+  - beforeRouteUpdate：在当前路由改变，但是该组件被复用时调用
+  - beforeRouteLeave：在离开当前组件对应的路由前调用
+
+- 导航解析流程
+  1. 导航被触发
+  2. 在失活的组件里调用 beforeRouteLeave 守卫
+  3. 调用全局的 beforeEach 守卫
+  4. 在重用的组件里调用 beforeRouteUpdate 守卫
+  5. 在路由配置里调用 beforeEnter
+  6. 解析异步路由组件
+  7. 在被激活的组件里调用 beforeRouteEnter
+  8. 调用全局的 beforeResolve 守卫
+  9. 导航被确认
+  10. 调用全局的 afterEach 钩子
+  11. 触发 DOM 更新
+  12. 调用 beforeRouteEnter 守卫中传给 next 的回调函数，创建好的组件实例会作为回调函数的参数传入

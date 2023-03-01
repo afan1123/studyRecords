@@ -115,3 +115,89 @@
 - 方案 3：页面懒加载
 - 方案 4：使用 Progressive JPEGs，他先会模糊显示，后来在会变清晰
 - 方案 5：改变图片格式，推荐 webp，比常规 jpeg 小 40%
+
+## performance
+
+### 操作
+
+<img src='./images/1cf6d1a31d6fd570c00022c063dc74f.png'>
+
+### 性能可视化
+
+<img src='./images/6ab5948c766ab5ac949830a37687f1e.png'>
+
+#### 区域 1：controls 控制栏
+
+<img src='./images/78fc8826261106697b30b5c85af3511.png'>
+
+- 录制、停止按钮可实时绘制一段时间当前页面时间轴的性能轨迹，时间为秒，停止后生成一张性能分析图
+- 屏幕快照选项，需要勾选才会出现屏幕快照截图（一般是默认勾选）
+  <img src='./images/0792f0cfacdf812f7879543b7ad08ae.png'>
+- 内存复选框：指标对应的时间资源状态，这个折线图只有在点击 Main 主线程的时候才会有，选择其他的指标时折线图区域时空白。
+  <img src='./images/6a8c782813e6e10d50a52a51c507a79.png'>
+
+  <img src='./images/4a17ec540717c878b7128e724988f4f.png'>
+
+  - JS Heap：表示 JS 占用的内存大小
+  - Documents：文档数
+  - Nodes：Node 节点数
+  - Listeners：监听数
+  - GPU Memory：GPU 占用数
+
+- Online：表示网速控制，自定义网速
+- CPU：对 CPU 进行减速，测试极端环境下对页面的性能影响
+
+#### 区域 2：网页性能指标图
+
+- 概览：FPS（每秒帧数情况）、CPU（CPU 占用情况）、NET（网络资源情况）、HEAP（JS 占用情况）一共四项指标
+  <img src='./images/49b22dad5b0995db94a533cb7605f41.png'>
+- FPS：一般 60 帧表示流畅，红色越多越卡顿，绿色越高越流畅
+  <img src='./images/ced19a0d0281363ad51f3698ae3e97f.png'>
+- CPU 资源：此面积图指示消耗 CPU 资源的事件类型
+  <img src='./images/15b338147b260f2a414d6e23d7ba1e1.png'>
+  蓝色(Loading)：表示网络通信和 HTML 解析时间。
+  黄色(Scripting)：表示 JavaScript 执行时间。
+  紫色(Rendering)：表示样式计算和布局（重排）时间。
+  绿色(Painting)：表示重绘时间。
+  灰色(other)：表示其它事件花费的时间。
+  白色(Idle)：表示空闲时间。
+- NET：每条彩色横杠表示一种资源。横杠越长，检索资源所需的时间越长。 每个横杠的浅色部分表示等待时间（从请求资源到第一个字节下载完成的时间）
+  <img src='./images/0fbf4a5c1af901b9dc372ba9c589d8e.png'>
+- HEAP：JavaScrip 执行的时间分布
+  <img src='./images/e85a31544796ee3e1a9f4dd57654642.png'>
+
+### 区域 3：火焰图
+
+<img src='./images/2e0c1a150db22dbd2238d5de939533f.png'>
+
+- Network：表示每个服务器资源的加载情况。
+- Frames：表示每幅帧的运行情况
+- Timings：
+  - FP（First Paint） 首屏绘制，页面刚开始渲染的时间。
+  - FCP（First Contentful Paint） 首屏内容绘制，首次绘制任何文本，图像，非空白 canvas 或 SVG 的时间点
+  - LCP（Largest Contentful Paint ） 最大内容绘制，页面上尺寸最大的元素绘制时间
+  - DCL（DOMContentLoaded） 表示 HTML 文档加载完成事件。当初始 HTML 文档完全加载并解析之后触发，无需等待样式、图片、子 frame 结束。作为明显的对比，load 事件是当个页面完全被加载时才触发。
+  - L（Onload） 页面所有资源加载完成事件。
+- Main：表示主线程，主要负责：Javascript 的计算与执行；CSS 样式计算；Layout 布局计算；将页面元素绘制成位图（paint）；将位图给合成线程。
+  - PS： - X 轴代表时间，每个长条代表着 event，长条越长就代表花的时间越多，Y 轴代表调用栈。在栈里，上面的 event 调用了下面的 event - 如果在性能长条中的右上角出现了红色的三角形，说明这个事件存在问题，需要特别留意。双击这个带有红色小三角的的事件。在 Summary 面板会看到详细信息。注意 reveal 这个链接，双击它会让高亮触发这个事件的 event。如果点击了 angular-1.4.7.min.js:1135 这个链接，就会跳转到对应的代码处
+    <img src='./images/1b186b3def2dda07bac86198bb1b5a5.png'>
+
+#### 区域 4：统计汇总
+
+- Summary：表示各指标时间占用统计报表
+  <img src='./images/f6b6aab2e2860974e59258eaaa84f87.png'>
+- Bottom-Up：表示事件时长排序列表（倒序）=> 可直接查看花费最多时间的活动
+  <img src='./images/43ed5420c53759154bb7d30afa5d954.png'>
+- Call tree：表示事件调用顺序列表=>可直接查看导致最多工作的根活动
+  <img src='./images/5a039758e5853be93b692a972e86c62.png'>
+- Event Log：表示事件发生的顺序列表=>记录期间的活动顺序查看活动；
+  <img src='./images/5c863659d89ad63aaefb39772134478.png'>
+
+### 其他监控性能小工具
+
+- Performance monitor 面板：页面性能的实时监控
+  <img src='./images/7983f59f7a94ea8a997be268a310317.png'>
+
+## Memory
+
+<https://juejin.cn/post/7185128318235541563>

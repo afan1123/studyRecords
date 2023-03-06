@@ -1,14 +1,11 @@
-function debounce(fn, delay) {
-  let timer = null;
-  return function () {
-    if (timer) clearTimeout(timer);
-    timerTimeout(() => {
-      fn();
-    }, delay);
-  };
-}
-
-function throttle(fn, delay) {
-  let timer = null;
-  return;
+function myNew() {
+  let constructor = [...arguments].shift();
+  if (typeof constructor !== 'function') {
+    throw Error('111');
+  }
+  let obj = {};
+  obj = Object.create(constructor.prtotype);
+  let res = constructor.call(obj, ...arguments);
+  const flag = typeof res === 'object' || typeof res === 'function';
+  return flag ? res : obj;
 }

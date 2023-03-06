@@ -7,10 +7,13 @@
     - 减少 DOM 层级
   - 优化 js、css 代码
     - 减少重拍重绘操作
+      - 涉及到虚拟 DOM：虚拟 DOM 的好处就是不在浏览器页面进行增删改，从而避免了很多的重绘回流操作
     - 降低 css 选择器复杂性
   - 动画效果优化
     - 使用 requestAnimationFrame
-    - 通过 translateZ 等来实现硬件加速
+      - 思考点：
+        - 如何计算动画帧率？（看 1 秒钟内执行了多少次回调函数）
+    - 通过 animation\translate\will-change 属性\来实现硬件加速
 - 资源加载优化
   - 减少资源大小
     - 代码压缩
@@ -18,22 +21,23 @@
     - 图片压缩
     - 代码拆分模块
   - 请求次数
-    - HTttp 强制缓存
+    - Http 强制缓存：改变 cache-control:max-age=3600(3600s 之后失效)
     - Service Worker
     - 本地存储（localStorage 等）
   - 请求速度
-    - CDN
+    - CDN 加速：可以将静态资源放入第三方 CDN 服务器上
     - Http 协商缓存
     - DNS Prefetch：优化下一次的 dns 解析速度
     - Http2
   - 优化资源加载时机
     - 路由懒加载：把对应的页面用 import 的形式引入
     - 预加载（preload）
+- 注意：表达的时候可以简单说采用了传统的对 js、css、html 的优化，然后再说动画优化以及资源加载优化
 
 1. 骨架屏
    - 方案 1：简单的图片替换
      - 核心：
-       - <link rel='preload' as='image' href='https://...'>
+       - \<link rel='preload' as='image' href='https://...'>
    - 方案 2：html + css
      - 核心：
        - 通过 animation: loading 2s ease infinite;控制背景移动实现从左到右的进度效果
@@ -48,26 +52,72 @@
 - 产生白屏原因：在渲染，即会加载外部 JS、加载外部 CSS、解析生成 DOM 树、生成样式规则、执行 JS、生成布局树、绘制页面等步骤中，由于卡顿会形成白屏
 - 优化：其实跟首屏优化差不多
 - 重点：
+
   - 懒加载图片：
-    - 原理：先展示可视区域的部分，再展示滚动后的页面
-    - ```js
-      // 核心代码
-      // 视口的高度；
-      const clientH = document.documentElement.clientHeight;
-      // 滚动的距离，这里的逻辑判断是为了作兼容性处理；
-      const clientT =
-        document.documentElement.scrollTop || document.body.scrollTop;
-      // 逻辑判断，若是视口高度+滚动距离 > 图片到浏览器顶部的距离就去加载；
-      // !imgs[i].src 是避免重复请求，能够把该条件取消试试：能够看到不加该条件的话往回滚动就会重复请求；
-      if (clientH + clientT > imgs[i].offsetTop && !imgs[i].src) {
-        // 使用data-xx的自定义属性能够经过dom元素的dataset.xx取得；
-        imgs[i].src = imgs[i].dataset.src;
-      }
-      // 监听滚动事件
-      window.onscroll = () => lazyLoad(imgs);
-      // 滚动监听优化：节流
-      window.onscroll = throttle(lazyLoad, 500);
-      ```
+
+    - 方案 1：
+      - 原理：先展示可视区域的部分，再展示滚动后的页面
+      - 缺点：配合 js 代码，进行一定量的运算，不够简洁
+      - ```js
+        // 核心代码
+        // 视口的高度；
+        const clientH = document.documentElement.clientHeight;
+        // 滚动的距离，这里的逻辑判断是为了作兼容性处理；
+        const clientT =
+          document.documentElement.scrollTop || document.body.scrollTop;
+        // 逻辑判断，若是视口高度+滚动距离 > 图片到浏览器顶部的距离就去加载；
+        // !imgs[i].src 是避免重复请求，能够把该条件取消试试：能够看到不加该条件的话往回滚动就会重复请求；
+        if (clientH + clientT > imgs[i].offsetTop && !imgs[i].src) {
+          // 使用data-xx的自定义属性能够经过dom元素的dataset.xx取得；
+          imgs[i].src = imgs[i].dataset.src;
+        }
+        // 监听滚动事件
+        window.onscroll = () => lazyLoad(imgs);
+        // 滚动监听优化：节流
+        window.onscroll = throttle(lazyLoad, 500);
+        ```
+    - 方案 2：
+
+      - 原理：使用 IntersectionObserver 这个类，检查是否在可视区域，再展示
+      - 缺点：不够简洁
+
+        ```js
+        document.addEventListener('DOMContentLoaded', function () {
+          var lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
+          if ('IntersectionObserver' in window) {
+            let lazyImageObserver = new IntersectionObserver(function (
+              entries,
+              observer
+            ) {
+              entries.forEach(function (entry) {
+                // 关键：判断是否已经进入可视区域
+                if (entry.isIntersecting) {
+                  let lazyImage = entry.target;
+                  lazyImage.src = lazyImage.dataset.src;
+                  lazyImage.srcset = lazyImage.dataset.srcset;
+                  lazyImage.classList.remove('lazy');
+                  lazyImageObserver.unobserve(lazyImage);
+                }
+              });
+            });
+
+            lazyImages.forEach(function (lazyImage) {
+              lazyImageObserver.observe(lazyImage);
+            });
+          } else {
+            // Possibly fall back to event handlers here
+          }
+        });
+        ```
+
+    - 方案 3：
+      - 原理：利用 HTML 的 loading 属性，实现延迟加载，即位于可视区域就加载图片
+      - 实现：
+      - \<img src="xxx.png" loading="lazy" />
+      - 注意：还有一个属性 loading，值类型有三个：
+        - sync：同步解码图像，保证与其他内容一起显示
+        - async：异步解码图像，其他内容优先显示
+        - default：默认值，默认不设置
 
 ## 虚拟列表
 
@@ -97,24 +147,44 @@
         }
   ```
 
+  - 缺点：没有渲染上去的节点，web 页面是（ctrl+F）搜索不到这个关键字的
+
+- 方案 2：使用 content-visibility: auto，可以实现不把节点加到 DOM 上去
+  <img src='./images/6890e02979d3341da2906e7aa11ada7.png'>
+
 ## 大图片加载优化
 
 - 方案 1：preload 预加载
   - <link ref='preload' href='./img...' as='image'>
 - 方案 2：图片拆分，将几个 G 的图拆分成几个 KB 的图
 - 方案 3：onload 事件（即完成加载）触发之前，先用图片代替
-- 方案 4：转成 base64，因为这样可以不用发请求，以算法的形式还原图片，适用于小图片，否则码会很长很长
 
 ## 多图片加载优化
 
-- 方案 1：使用雪碧图
+- 方案 1：使用雪碧图（由于过去网络较慢，所以用，现在不用了基本）
 - 方案 2：使用 Gzip，在一个文本文件中找出类似的字符串，并临时替换他们，使整个文件变小
   - 方式：
     - 前端压缩：打包的时候通过 webpack 生成对应的.gz 文件，浏览器请求 js、css 等文件的时候，服务器返回对应 jxx.js.jz、xx.css.gz 文件；
     - 服务端压缩：浏览器请求 js、css 等文件的时候，服务器对 js、css 等文件进行 gzip 压缩后传输给浏览器；
 - 方案 3：页面懒加载
-- 方案 4：使用 Progressive JPEGs，他先会模糊显示，后来在会变清晰
-- 方案 5：改变图片格式，推荐 webp，比常规 jpeg 小 40%
+- 方案 4：使用 Progressive JPEG，他先会模糊显示，后来在会变清晰
+  - 原理：图片会被多次扫描，随着扫描次数的增多，图片会越来越清晰
+  - 使用场景：当图片>10K 时，使用渐进式 JPEG，压缩率可达 94%，比普通体积更小；<10K 时，用普通 JPEG 会更好
+  - 缺点：吃内存和 CPU
+- 方案 5：改变图片格式，推荐 webp，比常规 jpeg 小 40%，另外还有 avif，jxl，解码性能比较：avif<jpeg xl<webp
+  - 原理：更优的图像数据压缩算法，有更好的有损（支持透明通道）、无损两种压缩模式，在转化 png 和 jpeg 上效果优越
+  - 缺点：解码性能差
+- 方案 6：考虑到兼容性，设计了以下方案
+  ```html
+  <picture>
+    <!-- 兼容性调整的同时，展示性能更好的图片 -->
+    <source src="image.avif" type="image/avif" />
+    <source src="image.jxl" type="image/jxl" />
+    <source src="image.webp" type="image/webp" />
+    <!-- 最终兜底方案 -->
+    <img src="image.jpg" type="image/jpeg" />
+  </picture>
+  ```
 
 ## performance
 
@@ -179,8 +249,10 @@
   - DCL（DOMContentLoaded） 表示 HTML 文档加载完成事件。当初始 HTML 文档完全加载并解析之后触发，无需等待样式、图片、子 frame 结束。作为明显的对比，load 事件是当个页面完全被加载时才触发。
   - L（Onload） 页面所有资源加载完成事件。
 - Main：表示主线程，主要负责：Javascript 的计算与执行；CSS 样式计算；Layout 布局计算；将页面元素绘制成位图（paint）；将位图给合成线程。
-  - PS： - X 轴代表时间，每个长条代表着 event，长条越长就代表花的时间越多，Y 轴代表调用栈。在栈里，上面的 event 调用了下面的 event - 如果在性能长条中的右上角出现了红色的三角形，说明这个事件存在问题，需要特别留意。双击这个带有红色小三角的的事件。在 Summary 面板会看到详细信息。注意 reveal 这个链接，双击它会让高亮触发这个事件的 event。如果点击了 angular-1.4.7.min.js:1135 这个链接，就会跳转到对应的代码处
-    <img src='./images/1b186b3def2dda07bac86198bb1b5a5.png'>
+  - PS：
+    - X 轴代表时间，每个长条代表着 event，长条越长就代表花的时间越多，Y 轴代表调用栈。在栈里，上面的 event 调用了下面的 event
+    - 如果在性能长条中的右上角出现了红色的三角形，说明这个事件存在问题，需要特别留意。双击这个带有红色小三角的的事件。在 Summary 面板会看到详细信息。注意 reveal 这个链接，双击它会让高亮触发这个事件的 event。如果点击了 angular-1.4.7.min.js:1135 这个链接，就会跳转到对应的代码处
+      <img src='./images/1b186b3def2dda07bac86198bb1b5a5.png'>
 
 #### 区域 4：统计汇总
 
@@ -201,3 +273,51 @@
 ## Memory
 
 <https://juejin.cn/post/7185128318235541563>
+
+## Axios 取消重复请求
+
+1. 取消请求方式
+
+   - Axios 内部提供的 CancelToken，适用于适合在某一时间同时取消所有请求：
+
+     ```js
+     const CancelToken = axios.CancelToken;
+     const source = CancelToken.source();
+     axios.post(
+       '/user/12345',
+       {
+         name: 'semlinker',
+       },
+       {
+         cancelToken: source.token,
+       }
+     );
+
+     source.cancel('Operation canceled by the user.'); // 取消请求，参数是可选的
+     ```
+
+   - 调用 CancelToken 的构造函数来创建 CancelToken，适用于每个请求分情况是否进行单独取消：
+
+     ```js
+     const CancelToken = axios.CancelToken;
+     let cancel;
+     axios.get('/user/12345', {
+       cancelToken: new CancelToken(function executor(c) {
+         cancel = c;
+       }),
+     });
+
+     cancel(); // 取消请求
+     ```
+
+2. 根据请求方法、请求 IP 地址、参数（用 sort 调整顺序）来生成唯一的 token（拼接字符串）
+3. 实现三个方法：
+   - 方法 1：将生成的请求 token 放入 map 对象
+   - 方法 2：将取消的方法与请求 token 映射起来放入 map
+   - 方法 3：检查请求是否重复，若重复，则取消已发请求
+4. 设置请求拦截器：先用方法 3，取消之前的请求，再用方法 2，添加请求 token 进 mao
+5. 设置响应拦截器：返回响应或者报错，使用方法 3 取消请求
+
+<img src='./images/8e51e72d14070ec101ff5c6c3d40e94.png'>
+
+- [文章出处](https://juejin.cn/post/6955610207036801031#heading-3)

@@ -83,19 +83,23 @@ function myInstanceof(left, right) {
 
 ### 具体原型链判断
 
-### Object.prototype.\_\_proto\_\_ ===null
+#### Object.prototype.\_\_proto\_\_ ===null
 
-### Function.prototype.\_\_proto\_\_ === Object.prototype
+#### Function.prototype.\_\_proto\_\_ === Object.prototype
 
-### 构造函数自身的\_\_proto\_\_ === Function.prototype
+#### 构造函数自身的\_\_proto\_\_ === Function.prototype
 
-### Object 的\_\_proto\_\_ === Function.prototype
+#### Object 的\_\_proto\_\_ === Function.prototype
 
-### Object instanceof Function === true
+#### Object instanceof Function === true
 
-### Function instanceof Object === true
+#### Function instanceof Object === true
 
-### Function.prototype === Function.\_\_proto\_\_
+#### Function.prototype === Function.\_\_proto\_\_
+
+<img src='./images/107a547bf14ab8370e0ceb4aaa344c8.png'>
+
+<img src='./images/60f95d281ae49a8b7ef6907e0662133.png' />
 
 ### New 操作符
 
@@ -203,6 +207,7 @@ function myNew() {
   - 直接调用
   - 后参数可以传很多
 - bind：
+
   - 间接调用
   - 后参数可以传很多
 
@@ -244,6 +249,8 @@ const foo3 = foo1.bind(o1).bind(o2).bind(o3);
 foo3(); // 'jack'
 ```
 
+<img src='./images/c9eec5aaa5245d798aeff0fa1df8125.png'>
+
 ### es6 新特性
 
 - let const 关键字
@@ -274,7 +281,8 @@ substring(startIndex, endIndex)
 - 生成全局唯一的值
 - symbol 作为键名，不被常规方法遍历，如 Object.keys()或者 for...in
 
-场景：
+  - 可以遍历的方法：Object.getOwnPropertySymbols 和 Reflect.ownKeys
+    场景：
 
 - 可以在 class 里封装私有属性/方法
 
@@ -302,7 +310,7 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
   - 都能循环数组
 - 不同点：
   - for in
-    - 遍历键名
+    - 遍历键名（普通属性，除 symbol 和不可枚举属性）
       - 可以遍历对象
   - for of
     - 遍历值
@@ -346,13 +354,13 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
 - 精度缺失：浏览器按照二进制进行计算，0.1 和 0.2 的二进制是无尽的，所以加起来不等于 0.3
 - 解决方案：（0.1 + 0.2）.toFixed(2)===0.3
 
-### ==和===有什么区别
+### == 和 === 有什么区别
 
 - == 会先进行类型比较，若不同，则隐式转换；相同，则比较值
 
   - 隐式转换规则：
     1. 会先判断是否在对比 null 和 undefined，是的话就会返回 true
-    2. 判断两者类型是否为 string 和 number，是的话就会将字符串转换为 number
+    2. 判断两者类型是否为 string 和 number，是的话就会将 string 转换为 number
     3. 判断其中一方是否为 boolean，是的话就会把 boolean 转为 number 再进行判断
     4. 判断其中一方是否为 object 且另一方为 string、number 或者 symbol，是的话就会把 object 转为原始类型再进行判断
   - 引用类型比较，转为原始值的方法：

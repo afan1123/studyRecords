@@ -1,11 +1,10 @@
-function myNew() {
-  let constructor = [...arguments].shift();
-  if (typeof constructor !== 'function') {
-    throw Error('111');
+function myCall() {
+  if (typeof this !== 'function') {
+    throw new Error('....');
   }
-  let obj = {};
-  obj = Object.create(constructor.prtotype);
-  let res = constructor.call(obj, ...arguments);
-  const flag = typeof res === 'object' || typeof res === 'function';
-  return flag ? res : obj;
+  let args = [...arguments].slice(1);
+  let context = {};
+  context.fn = this || window;
+  let res = context.fn(args);
+  return res;
 }

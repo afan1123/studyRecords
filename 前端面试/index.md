@@ -525,22 +525,20 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
   - XMLHttpRequestUpload 对象可以使用 XMLHttpRequest.upload 属性访问
   - 请求中没有使用 ReadableStream 对象。
 - 复杂请求（会触发 CORS 预检请求）：除了简单请求之外的
-
 - 实现方案
 
   - Node
   - 第三方中间件：koa-cors
-  - cookie：web 请求设置 withCredentials，Access-Control-Allow-Credentials 为 true，Access-Control-Allow-Origin 为非\*
-  -
+  - cookie：web 请求设置 withCredentials，Access-Control-Allow-Credentials 为 true，Access-Control-Allow-Origin 为非
 
 - 预检请求用的方法是'OPTIONS'，表示这个请求是用来询问的，里面有几个字段
   - Origin：表示请求来自哪个源
   - Access-Control-Request-Method：列出浏览器的 CORS 请求会用到哪些 HTTP 方法
   - Access-Control-Request-Headers：指定浏览器 CORS 请求会额外发送的头信息字段，如 X-Custom-Header
+- 预检请求作用：询问服务器当前网页所在的域名是否在服务器的许可名单之中，以及可以使用哪些 HTTP 动词和头信息字段；只有得到肯定答复，浏览器才会发出正式的跨域请求
 
-### 跨域
+### 跨域（CORS）
 
-- CORS
 - Node 正向代理
   - ````js
       // vue.config.js
@@ -567,7 +565,7 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
 - window.postMessage
 - ducument.domain + Iframe
 - window.location.hash + Iframe
-- window.name+ Iframe
+- window.name + Iframe
 
 ### 如何检查内存泄露
 

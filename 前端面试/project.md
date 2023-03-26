@@ -155,7 +155,7 @@
 ## 大图片加载优化
 
 - 方案 1：preload 预加载
-  - <link ref='preload' href='./img...' as='image'>
+  - \<link ref='preload' href='./img...' as='image'>
 - 方案 2：图片拆分，将几个 G 的图拆分成几个 KB 的图
 - 方案 3：onload 事件（即完成加载）触发之前，先用图片代替
 
@@ -270,54 +270,152 @@
 - Performance monitor 面板：页面性能的实时监控
   <img src='./images/7983f59f7a94ea8a997be268a310317.png'>
 
+## lighthouse
+
+使用 lighthouse 的结果，一般会给出几点优化建议，
+
+### FCP（First Contentful Paint）：
+
+- 定义：浏览器记录首次绘制来自 DOM 的内容的时间，内容必须是文本、图片（包含背景图），非白色的 canvas 或 SVG，也包括带有正在加载中的字体的文本
+- 衡量：小于 2 秒就是绿色，小于 4 秒是橙色，大于 4 秒就是红慢
+- 测量工具：PerformanceObserver 类和 web-vitals 库
+- 优化：
+
+  - 消除渲染阻塞资源：
+    - script 标签没加 defer 和 async 属性
+    - link 标签没加 disabled 属性
+  - 推迟使用非关键的代码（用 coverage 标签卡来识别关键和非关键代码，绿色是关键，红色是非关键）
+    ![image](./images/2f11ee72773dca47be1e8ee59ea00ef.png)
+
+    - 对脚本添加 async 或者 defer 属性
+    - 对 link 样式表：
+      ```html
+      <!--
+        link 的 onload 属性允许在加载 CSS 完成后对其进行处理。
+        在使用 onload 处理程序后将其“归零”有助于某些浏览器避免在切换 rel 属性时重新调用处理程序。
+      -->
+      <link
+        rel="preload"
+        href="styles.css"
+        as="style"
+        onload="this.onload=null;this.rel='stylesheet'"
+      />
+      <!-- 对不禁止javascript的浏览器进行兼容 -->
+      <noscript><link rel="stylesheet" href="styles.css" /></noscript>
+      ```
+
+  - 缩小 css 的文件体积：webpack 配置
+  - 预加载关键请求：
+
+  ```html
+  <head>
+    ...
+    <link rel="preload" href="styles.css" as="style" />
+    <link rel="preload" href="ui.js" as="script" />
+    ...
+  </head>
+  ```
+
+  - 减少网络负载： - 使用图片格式 webp，能有效吧图片提价减小四分之一 -
+    使用压缩插件，将代码体积缩小，如 Gzip，http2，webpack 插件 -
+  - 使用缓存：cache-control 和 expries 设置的长一点，或者设置 no-cache：直接用协商缓存
+
+- LCP
+-
+
+### http2
+
+### 移除无用的 css 和 js 代码
+
+- 开启 Gzip 压缩（需要 nginx）
+- 打包出来 chunk.js 有点大，就需要对 webpack 进行配置：切割一下打包文件，不要全部打包到一起，如：全局引入了 echarts 和 element 我们把这两个 js 分开打包
+- 按需引入第三方库，如 element-ui，需要按需引入 button；要是组件过多，需要全局引入，就尽量使用 cdn
+- 对静态资源使用强制缓存，协商缓存，需要配合 nginx
+
+### 减少 js 运行时间
+
+当 js 代码超过 2 秒时，将发出警告
+
+- 拆分 js 代码
+- 压缩代码
+- tree shaking
+
+### 消除阻止渲染的资源
+
+阻塞渲染会导致 FCP 和 LCP 的延迟
+
+- FCP 的测量
+  ```js
+  // PerformanceObserver监听名称为first-contentful-paint的油漆条目，并将其记录到控制台
+  new PerformanceObserver((entryList) => {
+    for (const entry of entryList.getEntriesByName('first-contentful-paint')) {
+      console.log('FCP candidate:', entry.startTime, entry);
+    }
+  }).observe({ type: 'paint', buffered: true });
+  ```
+
+### 网络资源
+
+- preload：让资源提前加载，并在需要执行时再执行；适用于当前页面优先级更高的请求
+- prefetch：让下一个页面的资源提前请求；适用于下一个页面的请求
+- 请求缓存
+
 ## Memory
 
 <https://juejin.cn/post/7185128318235541563>
+
+[内存排查](https://jinlong.github.io/2016/05/01/4-Types-of-Memory-Leaks-in-JavaScript-and-How-to-Get-Rid-Of-Them/)
 
 ## Axios 取消重复请求
 
 1. 取消请求方式
 
-   - Axios 内部提供的 CancelToken，适用于适合在某一时间同时取消所有请求：
+- Axios 内部提供的 CancelToken，适用于适合在某一时间同时取消所有请求：
 
-     ```js
-     const CancelToken = axios.CancelToken;
-     const source = CancelToken.source();
-     axios.post(
-       '/user/12345',
-       {
-         name: 'semlinker',
-       },
-       {
-         cancelToken: source.token,
-       }
-     );
+  ```js
+  const CancelToken = axios.CancelToken;
+  const source = CancelToken.source();
+  axios.post(
+    '/user/12345',
+    {
+      name: 'semlinker',
+    },
+    {
+      cancelToken: source.token,
+    }
+  );
 
-     source.cancel('Operation canceled by the user.'); // 取消请求，参数是可选的
-     ```
+  source.cancel('Operation canceled by the user.'); // 取消请求，参数是可选的
+  ```
 
-   - 调用 CancelToken 的构造函数来创建 CancelToken，适用于每个请求分情况是否进行单独取消：
+- 调用 CancelToken 的构造函数来创建 CancelToken，适用于每个请求分情况是否进行单独取消：
 
-     ```js
-     const CancelToken = axios.CancelToken;
-     let cancel;
-     axios.get('/user/12345', {
-       cancelToken: new CancelToken(function executor(c) {
-         cancel = c;
-       }),
-     });
+  ```js
+  const CancelToken = axios.CancelToken;
+  let cancel;
+  axios.get('/user/12345', {
+    cancelToken: new CancelToken(function executor(c) {
+      cancel = c;
+    }),
+  });
 
-     cancel(); // 取消请求
-     ```
+  cancel(); // 取消请求
+  ```
 
 2. 根据请求方法、请求 IP 地址、参数（用 sort 调整顺序）来生成唯一的 token（拼接字符串）
 3. 实现三个方法：
-   - 方法 1：将生成的请求 token 放入 map 对象
-   - 方法 2：将取消的方法与请求 token 映射起来放入 map
-   - 方法 3：检查请求是否重复，若重复，则取消已发请求
+
+- 方法 1：将生成的请求 token 放入 map 对象
+- 方法 2：将取消的方法与请求 token 映射起来放入 map
+- 方法 3：检查请求是否重复，若重复，则取消已发请求
+
 4. 设置请求拦截器：先用方法 3，取消之前的请求，再用方法 2，添加请求 token 进 mao
 5. 设置响应拦截器：返回响应或者报错，使用方法 3 取消请求
 
 <img src='./images/8e51e72d14070ec101ff5c6c3d40e94.png'>
 
 - [文章出处](https://juejin.cn/post/6955610207036801031#heading-3)
+
+```
+
+```

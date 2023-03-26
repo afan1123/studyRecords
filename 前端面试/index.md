@@ -670,7 +670,7 @@ js 文件与其他文件是同步加载的，会阻塞其他文件的加载，�
   - 使用场景：
     - 可应用与 Android 开发
 - MVVM（Model-View-ModelView）与 MVP 基本一致
-  - 区别：View 与 ViewModel 实现了双向绑定，View 层变动自动反映在 ViewModel 层，反之亦然
+  - 区别：Model 与 ViewModel 实现了双向绑定，View 层变动自动反映在 ViewModel 层，反之亦然
 
 ### 发布-订阅模式
 

@@ -11,23 +11,63 @@
  * 9. promise
  * **/
 
-async function async1() {
-  console.log('async1 start');
-  await async2();
-  console.log('async1 end');
+const PENDING = 'pending';
+const RESOLVED = 'resolved';
+const REJECTED = 'rejected';
+function myPromise(fn) {
+  const self = this;
+  this.state = PENDING;
+  this.value = null;
+  this.resolvedCallbacks = [];
+  this.rejectedCallbacks = [];
+  function resolve(value) {
+    if (value instanceof myPromise) {
+      return value.then(resolve, reject);
+    }
+    setTimeout(() => {
+      if (self.state === PENDING) {
+        self.state = RESOLVED;
+        self.value = value;
+        self.resolvedCallbacks.forEach((callback) => callback());
+      }
+    }, 0);
+  }
+  function reject(value) {
+    setTimeout(() => {
+      if (self.state === PENDING) {
+        self.state = REJECTED;
+        self.value = value;
+        self.rejectedCallbacks.forEach((callback) => callback());
+      }
+    }, 0);
+  }
+  try {
+    fn(resolve, reject);
+  } catch (e) {
+    reject(e);
+  }
+  myPromise.prototype.then = function (onResolved, onRejected) {
+    onResolved =
+      typeof onResolved === 'function'
+        ? onResolved
+        : function (value) {
+            return value;
+          };
+    onRejected =
+      typeof onRejected === 'function'
+        ? onRejected
+        : function (error) {
+            throw error;
+          };
+    if (this.state === PENDING) {
+      this.resolvedCallbacks.push(onResolved);
+      this.rejectedCallbacks.push(onRejected);
+    }
+    if ((this.state = RESOLVED)) {
+      onResolved(this.value);
+    }
+    if ((this.state = REJECTED)) {
+      onRejected(this.value);
+    }
+  };
 }
-async function async2() {
-  console.log('async2');
-}
-console.log('script start');
-setTimeout(function () {
-  console.log('setTimeout');
-}, 0);
-async1();
-new Promise(function (resolve) {
-  console.log('promise1');
-  resolve();
-}).then(function () {
-  console.log('promise2');
-});
-console.log('script end');

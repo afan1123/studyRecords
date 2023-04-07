@@ -317,8 +317,8 @@
   ```
 
   - 减少网络负载：
-  - 使用图片格式 webp，能有效吧图片提价减小四分之一 -
-    使用压缩插件，将代码体积缩小，如 Gzip，http2，webpack 插件 -
+  - 使用图片格式 webp，能有效吧图片提价减小四分之一
+    使用压缩插件，将代码体积缩小，如 Gzip，http2，webpack 插件
   - 使用缓存：cache-control 和 expries 设置的长一点，或者设置 no-cache：直接用协商缓存，对于需要跟服务器保持同步的数据
 
 ### LCP（last contentful paint）
@@ -468,6 +468,143 @@
 
 - [文章出处](https://juejin.cn/post/6955610207036801031#heading-3)
 
+## 权限模块设计
+
+1. 后端返回管理员身份角色
+2. 前端根据角色对路由表进行增删改，将信息写在 route 的 meta 中
+3. 部分路由上的按钮、视图需要根据角色进行修改，需要用到自定义指令 vue.directive
+4. 通过 router.currentRouter 来进行获取 meta 信息
+5. 根据 meta 信息，对自定义指令进行配置
+   <img src='./images/02a0d7c8628b40269ddaa1af37d0459.png'>
+
+## 大文件上传
+
+原因：上传 excel 文件，图片过大，由于使用了传统的页导致请求时间过长，页面卡顿
+实现：
+
+1. 文件切片
+   实现： 设置开始索引，结束索引，片段长度，通过 file.slice 将一个文件二进制切成几份，然后挨个上传
+
+   ```js
+   function slice(file, piece = 1024 * 1024 * 5) {
+     let totalSize = file.size; // 文件总大小
+     let start = 0; // 每次上传的开始字节
+     let end = start + piece; // 每次上传的结尾字节
+     let chunks = [];
+     while (start < totalSize) {
+       // 根据长度截取每次需要上传的数据
+       // File对象继承自Blob对象，因此包含slice方法
+       let blob = file.slice(start, end);
+       chunks.push(blob);
+
+       start = end;
+       end = start + piece;
+     }
+     return chunks;
+   }
+   let file = document.querySelector('[name=file]').files[0];
+   const LENGTH = 1024 _ 1024 _ 0.1;
+   let chunks = slice(file, LENGTH); // 首先拆分切片
+    chunks.forEach(chunk=>{
+    let fd = new FormData();
+    fd.append("file", chunk);
+    post('/mkblk.php', fd)
+    })
+   ```
+
+2. 还原文件
+   背景：避免提交相同的文件，以及保证能够还原文件
+   实现：context 字段可以作为一个文件的唯一标识，可以根据用户信息，文件名，文件长度来生成 context 值；chunk 字段可以作为切片的顺序，保证拼接顺序
+
+   ```js
+   // 获取context，同一个文件会返回相同的值
+   function createContext(file) {
+     return file.name + file.length;
+   }
+   ...
+   let tasks = [];
+   chunks.forEach((chunk, index) => {
+     let fd = new FormData();
+     fd.append('file', chunk);
+     // 传递context
+     fd.append('context', context);
+     // 传递切片索引值
+     fd.append('chunk', index + 1);
+
+     tasks.push(post('/mkblk.php', fd));
+   });
+   // 所有切片上传完毕后，调用mkfile接口，通知服务端拼接
+   Promise.all(tasks).then(res => {
+   let fd = new FormData();
+   fd.append("context", context);
+   fd.append("chunks", chunks.length);
+   post("/mkfile.php", fd).then(res => {
+    console.log(res);
+    });
+   });
+
+   ```
+
+3. 断点续传
+   背景：上传过程中会因为用户关闭浏览器或者网络出现问题造成只上传了一部分
+   实现：
+   1. 客户端本地通过 localStorage 实现，记录上传了哪些切片，保存到本地，下次传输相同文件时，只选择未上传的切片进行上传
+   2. 服务端提供接口查询哪些切片已经上传，前端也是只选择未上传的切片进行上传
+4. 上传进度与暂停
+   实现：
+   进度：axios 中有 onUploadProgress（progess）；XMLHttpRequest.upload
+   暂停：axios.CancelToken.source.cancel()；
+
+后续优化：
+
+1. 对于切片数量很多，我们可以设置最大多少个切片，从而减少请求数量
+
+来源：[链接](https://www.yuque.com/u1598738/trf64p/tx93taqxlzs1ng8e?singleDoc#)
+
+## 时间切片
+
+背景：在搜索人员存在大量数据的时候会出现，页面卡顿；对于多图片的渲染，考虑到存在图片宽高、页面几行几列布局的大量计算，造成页面卡顿；
+本质：就是这些大量的计算导致的长任务，阻塞了 js 主线程
+实现：
+
+1. 用 performance 排查有关的长任务
+2. 将长任务放到一个数组中
+3. 设置执行时间，使用 do while 循环，对数组中的任务进行一个个执行，当执行时间小于默认值时，不再执行
+4. 用 setTimout 来执行下一次的任务，直至数组清空；
+5. 也可以使用 message Chanel 来实现，setTimeout 间隔是 4ms，message Chanel 要更小
+
+注意点：
+
+1. 如果遇到一个任务过长，那就还需要对其进行拆分
+2. 和 requestIdleCallback 区别，一个是空闲时间执行，一个是在规定时间限制下执行
+
+```js
+const schduler = (tasks) => {
+  const DEFAULT_RUNTIME = 16;
+  const { port1, port2 } = new MessageChannel();
+  let sum = 0;
+
+  // 运行器
+  const runner = () => {
+    const prevTime = performance.now();
+    do {
+      if (tasks.length === 0) {
+        return;
+      }
+      const task = tasks.shift();
+      const value = task();
+      sum += value;
+    } while (performance.now() - prevTime < DEFAULT_RUNTIME);
+    // 当前分片执行完成后开启下一个分片
+    port2.postMessage('');
+  };
+
+  port1.onmessage = function () {
+    runner();
+  };
+
+  port2.postMessage('');
+};
 ```
 
-```
+来源：[链接](https://zhuanlan.zhihu.com/p/436152473)

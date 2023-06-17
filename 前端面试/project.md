@@ -8,6 +8,10 @@
   - 优化 js、css 代码
     - 减少重拍重绘操作
       - 涉及到虚拟 DOM：虚拟 DOM 的好处就是不在浏览器页面进行增删改，从而避免了很多的重绘回流操作
+      - display：none/fregament
+      - 绝对定位，脱离文档流
+      - 懒加载
+      - script 标签的 derfer 和 async
     - 降低 css 选择器复杂性
   - 动画效果优化
     - 使用 requestAnimationFrame
@@ -461,7 +465,7 @@
 - 方法 2：将取消的方法与请求 token 映射起来放入 map
 - 方法 3：检查请求是否重复，若重复，则取消已发请求
 
-4. 设置请求拦截器：先用方法 3，取消之前的请求，再用方法 2，添加请求 token 进 mao
+4. 设置请求拦截器：先用方法 3，取消之前的请求，再用方法 2，添加请求 token 进 map
 5. 设置响应拦截器：返回响应或者报错，使用方法 3 取消请求
 
 <img src='./images/8e51e72d14070ec101ff5c6c3d40e94.png'>
@@ -553,7 +557,7 @@
 4. 上传进度与暂停
    实现：
    进度：axios 中有 onUploadProgress（progess）；XMLHttpRequest.upload
-   暂停：axios.CancelToken.source.cancel()；
+   暂停：axios.CancelToken.source.cancel()；XMLHttpRequest.abort
 
 后续优化：
 
@@ -577,6 +581,7 @@
 
 1. 如果遇到一个任务过长，那就还需要对其进行拆分
 2. 和 requestIdleCallback 区别，一个是空闲时间执行，一个是在规定时间限制下执行
+3. Web Worker 的内存和主线程不共享，会让项目占用的内存增长，同时和主线程通信也有一定开销，优化的话，耗时未必会少，所以这里选择时间分片。
 
 ```js
 const schduler = (tasks) => {
@@ -608,3 +613,17 @@ const schduler = (tasks) => {
 ```
 
 来源：[链接](https://zhuanlan.zhihu.com/p/436152473)
+
+## webpack
+
+### loader 怎么写
+
+简单：[链接](https://blog.csdn.net/sinat_17775997/article/details/124514613)
+
+### 热更新
+
+[链接](https://blog.csdn.net/fan2016434589/article/details/124405499)
+
+## 单点登录
+
+实现：[链接](https://juejin.cn/post/7052981225106964511)

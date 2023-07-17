@@ -1,0 +1,375 @@
+# 熟练使用 Vue-Router
+
+## 动态路由
+
+- 定义：实现根据特定业务场景（如：权限角色）实现对路由表的增删改查
+- 大体思路：
+
+  1. 路由表协商静态路由和权限路由
+  2. 在 store 里面维护 routes
+  3. 路由守卫里添加校验权限的逻辑
+  4. 侧边栏 sidebar 可以从 store 里面拉取路由数据
+- 示例
+
+  ```javascript
+  ```
+
+import Vue from 'vue'
+import Router from 'vue-router'
+
+Vue.use(Router)
+
+import Layout from '@/layout'
+
+// constantRoutes  静态路由，主要是登录页、404 页等不需要动态的路由
+export const constantRoutes = [
+{
+path: '/redirect',
+component: Layout,
+hidden: true,
+children: [
+{
+path: '/redirect/:path*',
+component: () => import('@/views/redirect/index')
+}
+]
+},
+{
+path: '/login',
+component: () => import('@/views/login/index'),
+hidden: true
+},
+{
+path: '/404',
+component: () => import('@/views/error-page/404'),
+hidden: true
+},
+{
+path: '/401',
+component: () => import('@/views/error-page/401'),
+hidden: true
+}
+]
+
+// asyncRoutes 动态路由
+export const asyncRoutes = [
+{
+path: '/permission',
+component: Layout,
+redirect: '/permission/page',
+alwaysShow: true,
+name: 'Permission',
+meta: {
+title: 'Permission',
+icon: 'lock',
+// 核心代码，可以通过配的角色来进行遍历，从而是否展示
+// 这个意思就是 admin、editor 这两个角色，这个菜单是可以显示
+roles: ['admin', 'editor']
+},
+children: [
+{
+path: 'page',
+component: () => import('@/views/permission/page'),
+name: 'PagePermission',
+meta: {
+title: 'Page Permission',
+// 这个意思就是只有 admin 能展示
+roles: ['admin']
+}
+}
+]
+}
+]
+
+const createRouter = () => new Router({
+scrollBehavior: () => ({ y: 0 }),
+routes: constantRoutes
+})
+
+const router = createRouter()
+
+// 这个是重置路由用的，很有用，别看这么几行代码
+export function resetRouter() {
+const newRouter = createRouter()
+router.matcher = newRouter.matcher
+}
+
+export default router
+
+```
+	```javascript
+import { asyncRoutes, constantRoutes } from '@/router'
+
+// 这个方法是用来把角色和route.meta.role来进行匹配
+function hasPermission(roles, route) {
+  if (route.meta && route.meta.roles) {
+    return roles.some(role => route.meta.roles.includes(role))
+  } else {
+    return true
+  }
+}
+
+
+// 这个方法是通过递归来遍历路由，把有权限的路由给遍历出来
+export function filterAsyncRoutes(routes, roles) {
+  const res = []
+
+  routes.forEach(route => {
+    const tmp = { ...route }
+    if (hasPermission(roles, tmp)) {
+      if (tmp.children) {
+        tmp.children = filterAsyncRoutes(tmp.children, roles)
+      }
+      res.push(tmp)
+    }
+  })
+
+  return res
+}
+
+const state = {
+  routes: [],
+  addRoutes: []
+}
+
+const mutations = {
+  SET_ROUTES: (state, routes) => {
+    // 这个地方维护了两个状态一个是addRouters，一个是routes
+    state.addRoutes = routes
+    state.routes = constantRoutes.concat(routes)
+  }
+}
+
+const actions = {
+  generateRoutes({ commit }, roles) {
+    return new Promise(resolve => {
+      let accessedRoutes
+      if (roles.includes('admin')) {
+        accessedRoutes = asyncRoutes || []
+      } else {
+        // 核心代码，把路由和获取到的角色(后台获取的)传进去进行匹配
+        accessedRoutes = filterAsyncRoutes(asyncRoutes, roles)
+      }
+      // 把匹配完有权限的路由给set到vuex里面
+      commit('SET_ROUTES', accessedRoutes)
+      resolve(accessedRoutes)
+    })
+  }
+}
+
+export default {
+  namespaced: true,
+  state,
+  mutations,
+  actions
+}
+```
+
+```
+```javascript
+```
+
+// permission.js
+router.beforeEach((to, from, next) => {
+if (store.getters.token) { // 判断是否有 token
+if (to.path === '/login') {
+next({ path: '/' });
+} else {
+// 判断当前用户是否已拉取完 user_info 信息
+if (store.getters.roles.length === 0) {
+store.dispatch('GetInfo').then(res => { // 拉取 info
+const roles = res.data.role;
+// 把获取到的 role 传进去进行匹配，生成可以访问的路由
+store.dispatch('GenerateRoutes', { roles }).then(() => {
+// 动态添加可访问路由表（核心代码，没有它啥也干不了）
+router.addRoutes(store.getters.addRouters)
+
+```
+        // hack方法 确保addRoutes已完成
+        next({ ...to, replace: true })
+      })
+    }).catch(err => {
+      console.log(err);
+    });
+  } else {
+    next() //当有用户权限的时候，说明所有可访问路由已生成 如访问没权限的全面会自动进入404页面
+  }
+}
+```
+
+} else {
+if (whiteList.indexOf(to.path) !== -1) { // 在免登录白名单，直接进入
+next();
+} else {
+next('/login'); // 否则全部重定向到登录页
+}
+}
+})
+
+```
+	```javascript
+<!-- layout/components/siderbar.vue -->
+<el-menu
+:default-active="activeMenu"
+:collapse="isCollapse"
+:background-color="variables.menuBg"
+:text-color="variables.menuText"
+:unique-opened="false"
+:active-text-color="variables.menuActiveText"
+:collapse-transition="false"
+mode="vertical"
+>
+    // 把取到的路由进行循环作为参数传给子组件
+    <sidebar-item v-for="route in routes" :key="route.path" :item="route" :base-path="route.path" />
+</el-menu>
+// 获取有权限的路由
+routes() {
+  return this.$router.options.routes
+}
+
+
+<!-- layout/components/siderbarItem.vue -->
+  <template slot="title">
+    <item v-if="item.meta" :icon="item.meta && item.meta.icon" :title="item.meta.title" />
+  </template>
+  <sidebar-item
+    v-for="child in item.children"
+    :key="child.path"
+    :is-nest="true"
+    :item="child"
+    :base-path="resolvePath(child.path)"
+    class="nest-menu"
+  />
+
+  props: {
+    // route object
+    item: {
+      type: Object,
+      required: true
+    },
+    isNest: {
+      type: Boolean,
+      default: false
+    },
+    basePath: {
+      type: String,
+      default: ''
+    }
+  }
+```
+
+## 路由懒加载
+
+- 定义：在需要这个路由的时候才加载对应组件
+- 背景：原本的打包文件是一起的，加载其中一个路由就需要加载整个包，很费性能。
+- 示例：（先支持拆包，再延迟执行代码）
+
+```javascript
+// 对webpack进行模块拆包
+module.exports = {
+    entry:'./src/main.js', //入口文件
+    output: {
+        path: path.resolve(__dirname, 'dist'),
+        chunkFilename: '[name].bundle.js',
+        filename: 'bundle.js',
+    }
+}
+
+
+// 方式一
+{      
+   path: '/problem',    
+   name: 'problem',     
+   component：() => import('../views/Home.vue') 
+}
+// 方式二
+{      
+   path: '/problem',    
+   name: 'problem',     
+   component: resolve => require(['../pages/home/problemList'], resolve)    
+}
+// 方式三
+{      
+   path: '/problem',    
+   name: 'problem',     
+   component: resolve=>{
+          require.ensure(['@/components/HelloWorld'],()=>{
+           resolve(require('@/components/HelloWorld'))
+    })
+  }
+}
+```
+
+- 注意点：
+  - import 是解构过程且是编译时执行
+  - require 是赋值过程且是运行时才执行，即异步加载
+  - require 的性能较低，因为 require 是在运行时才引入模块并且还赋值给某个变量
+
+## 导航守卫
+
+- 定义：在路由跳转时，可以自定义的添加逻辑和处理
+- 分类：
+
+  - 全局守卫：
+    - beforeEach：路由跳转之前进行拦截，适用于判断用户是否登录
+    - afterEach：路由跳转之后进行拦截，适用于记录用户访问的页面
+
+    ```javascript
+    ```
+
+router.beforeEach((to, from, next) => {
+// ...
+})
+router.afterEach((to, from) => {
+// ...
+})
+
+```
+	- 独享路由守卫：
+		- beforeEnter：对应用内的某个特定的路由进行拦截，适用于判断用户是否有权限访问
+		```javascript
+const router = new VueRouter({
+  routes: [
+    {
+      path: '/foo',
+      component: Foo,
+      beforeEnter: (to, from, next) => {
+        // ...
+      }
+    }
+  ]
+})
+```
+
+```
+- 组件内路由守卫：
+	- beforeRouteEnter：路由进入组件之前，适用于加载数据
+	- beforeRouteUpdate：路由被复用时调用，适用于组件根据参数不同更新组件状态
+	- beforeRouteLeave：离开组件路由之前，适用于清除数据和过渡动画
+	```javascript
+```
+
+const UserDetails = {
+template: `...`,
+beforeRouteEnter(to, from) {
+// 在渲染该组件的对应路由被验证前调用
+// 不能获取组件实例 `this` ！
+// 因为当守卫执行时，组件实例还没被创建！
+},
+beforeRouteUpdate(to, from) {
+// 在当前路由改变，但是该组件被复用时调用
+// 举例来说，对于一个带有动态参数的路径 `/users/:id`，在 `/users/1` 和 `/users/2` 之间跳转的时候，
+// 由于会渲染同样的 `UserDetails` 组件，因此组件实例会被复用。而这个钩子就会在这个情况下被调用。
+// 因为在这种情况发生的时候，组件已经挂载好了，导航守卫可以访问组件实例 `this`
+},
+beforeRouteLeave(to, from) {
+// 在导航离开渲染该组件的对应路由时调用
+// 与 `beforeRouteUpdate` 一样，它可以访问组件实例 `this`
+},
+}
+
+```
+
+
+
+```

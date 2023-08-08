@@ -627,3 +627,120 @@ const schduler = (tasks) => {
 ## 单点登录
 
 实现：[链接](https://juejin.cn/post/7052981225106964511)
+
+## 组件库
+
+- 思路：pnpm+vite+monorepo
+  1. Monorepo 环境搭建
+     - 轻量化选型：pnpm+workspace
+     - 实现步骤：
+       1. 新建 packages 包，在其中新建 a 和 b 文件夹
+       2. 根目录新建 pnpm-workspace.yaml，写上 packages，安装 a 包，就能实现软连接，b 包依赖就有 a 包了
+  2. 基本配置：
+     - 按上述思路，配置工具包和测试包
+     - 给工具包中的每个组件添加 install 方法，提供给 app.use 使用
+     - vue3 中的 setup 无法声明组件名时，需要用到 defineoptions 定义 name
+     - 在组件上加自定义属性实现样式，结合 props 和 class
+  3. 全量打包
+     - 打包工具：vite
+  4. 按需打包：
+     - 打包工具：gulp
+     - gulp 作用：流程化控制
+     - 和全量打包的区别：入口和出口文件都变成了组件的单文件 index.js
+  5. 发布：pnpm publish
+  6. 自动发布：
+     - 插件：release-it
+     - package.json：设置远程仓库地址
+
+### Monorepo
+
+- 实现：在根目录新建 packages、 pnpm-workspace.yaml、和项目，pnpm-workspace.yaml 写上 workspace:packages，packages 下的包就能实现软连接，根目录的项目可以直接引用包
+  - pnpm-workspace.yaml：配置软连接的文件
+  - packages：存放各种库的文件夹
+
+### vite
+
+- 优点：
+  - 冷启动快：
+    - 基于浏览器的 esModule，实现按需加载；启动时，不需要打包，无需编译和分析模块依赖关系；当浏览器需要加载对应模块时，才会编译模块，也就是按需编译。
+  - 热更新快：
+    - 基于浏览器的 ESM，按需请求编译模块，不需要重新编译所有模块。
+- 缺点：
+  - 首屏加载时间变长
+  - 懒加载性能下降
+  - 生态没有 webpack 好
+- 原理：
+
+  - 开发时，用 esbuild 进行构建；生产时，用 rollup 进行打包。原因是因为使用未打包的 ESM 时，会产生额外的请求，造成浪费；所以需要采用 tree-shaking、懒加载和 chunk 分割等来优化。
+  - 热更新采用了 unbundle 机制，就是不需要构建、分解模块，以及依赖关系只靠浏览器的 ESM 来解析。加载时机：浏览器发起请求，dev server 的中间件会实现转换并缓存，然后将内容发送给浏览器。
+
+- 对比 webpack：
+  - 热更新：需要整个模块链重新打包和替换
+  - 配置：配置复杂，难上手
+  - 生态：生态丰富
+  - 打包：默认情况，会对所有模块编译打包成一个 bundle，速度较慢
+
+### 组件库
+
+- 构成：
+
+  - components 包：ui 组件
+  - shared 包：工具包
+  - plugins 包：插件包
+  - theme 包：主题样式
+  - cli：脚手架的命令行工具
+  - docs 包：组件的示例 demo (VuePress2 )
+  - playground：在线编译、演示应用
+
+  ```
+    📦openx-ui
+    ┣ 📂docs
+    ┃ ┗ 📜package.json
+    ┣ 📂demo # 展示组件效果的 Web 应用
+    ┃ ┣ 📂node_modules
+    ┃ ┣ 📂dist
+    ┃ ┣ 📂public
+    ┃ ┣ 📂src
+    ┃ ┣ 📜index.html
+    ┃ ┣ 📜vite.config.ts
+    ┃ ┣ 📜tsconfig.json
+    ┃ ┗ 📜package.json
+    ┣ 📂packages
+    ┃ ┣ 📂button
+    ┃ ┃ ┣ 📂node_modules
+    ┃ ┃ ┣ 📂dist # 组件产物目录
+    ┃ ┃ ┣ 📂src # 组件源码目录
+    ┃ ┃ ┃ ┣ 📜Button.vue
+    ┃ ┃ ┃ ┗ 📜index.ts
+    ┃ ┃ ┣ 📜package.json
+    ┃ ┃ ┗ 📜vite.config.ts
+    ┃ ┣ 📂input
+    ┃ ┃ ┗ 📜...
+    ┃ ┣ 📂shared
+    ┃ ┃ ┗ 📜...
+    ┃ ┗ 📂ui # 组件库主包，各组件的统一出口
+    ┃ ┗ 📜...
+    ┣ 📜package.json
+    ┣ 📜tsconfig.json
+    ┣ 📜tsconfig.base.json
+    ┣ 📜tsconfig.node.json
+    ┣ 📜tsconfig.src.json
+    ┣ 📜pnpm-workspace.yaml
+    ┗ 📜README.md
+  ```
+
+- 目录结构组织方案：monorepo（pnpm + workspace）
+  - 对比：
+    - singlerepo：整个应用进行统一发布，不能解耦出单独的模块、组件库、工具等，不利于以后的单独维护
+    - multirepo：解耦出不同的模块、组件库、工具等，可以进行版本控制、构建、部署和发布，更有利于团队协作，但是跨仓库开发，不利于维护、调试，版本管理也难统一升级
+  - 优点：monorepo 既满足了 singlerepo 的维护的便利性，也满足 multirepo 对项目的解耦，也就是多个仓库整合到一个仓库，实现共享。
+  - 缺点：
+    - 权限隔离不好，不是 owner 也能改动代码
+    - 一个项目出问题，可能影响关联的所有项目
+    - 多项目会体积会很大
+  - 困难点：
+    - 幽灵依赖：
+      - 原因：npm/yarn 安装依赖存在依赖提升，其他项目使用的依赖，在本项目中没有安装，也能使用，因为 node 的查询包流程机制，找不到依赖就会向上查找到别的依赖。
+      - 解决：使用 pnpm 能解决，原理是：它把所有所有的依赖放到一个仓库里，通过链接的方式来访问依赖。
+    - 安装依赖时间长：相同依赖提升至根目录下；pnpm 的按需安装及依赖缓存
+    - 构建时间长：由于是全量构建，所以需要按需构建或者并行构建

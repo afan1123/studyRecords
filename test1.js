@@ -33,26 +33,3 @@ function parseQueryString(url) {
   });
   return obj;
 }
-
-function throllte(fn, delay) {
-  let curTime = Date.now(),
-    timer = null;
-  return function () {
-    let nowTime = Date.now(),
-      args = arguments,
-      context = this,
-      restTime = delay + curTime - nowTime;
-    if (restTime < 0) {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      fn.apply(context, args);
-      curTime = Date.now();
-    } else if (!timer) {
-      timer = setTimeout(() => {
-        fn.apply(context, args);
-      }, delay);
-    }
-  };
-}
